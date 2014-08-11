@@ -26,7 +26,9 @@ cli_opts = [
                help='Port that will be used to listen on.'),
     cfg.BoolOpt('log-exchange', default=False,
                 help='Log request/response exchange details: environ, '
-                     'headers and bodies.')
+                     'headers and bodies.'),
+    cfg.PermissiveOpt('permissive_mode', default=False,
+                      help='Whether Sahara API should perform permissive authentication or not')
 ]
 
 edp_opts = [

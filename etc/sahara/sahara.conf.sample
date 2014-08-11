@@ -15,6 +15,13 @@
 # bodies. (boolean value)
 #log_exchange=false
 
+# Operate in permissive mode. This means that requests coming from clients
+# will not be authenticated against KeyStone server. They will be forwarded
+# and filled with identity information based on the admin token instead.
+# This is designed for the use case, where Sahara is used in private mode and
+# should be used with care otherwise.
+#permissive_mode=false
+
 # Maximum length of job binary data in kilobytes that may be
 # stored or retrieved in a single operation (integer value)
 #job_binary_max_KB=5120
