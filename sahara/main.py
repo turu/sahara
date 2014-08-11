@@ -26,6 +26,7 @@ from sahara.api import v11 as api_v11
 from sahara import context
 from sahara.middleware import auth_valid
 from sahara.middleware import log_exchange
+from sahara.middleware import auth_token_permissive
 from sahara.openstack.common import log
 from sahara.plugins import base as plugins_base
 from sahara.service import api as service_api
@@ -137,17 +138,32 @@ def make_app():
 
     app.wsgi_app = auth_valid.filter_factory(app.config)(app.wsgi_app)
 
-    app.wsgi_app = auth_token.filter_factory(
-        app.config,
-        auth_host=CONF.os_auth_host,
-        auth_port=CONF.os_auth_port,
-        auth_protocol=CONF.os_auth_protocol,
-        admin_user=CONF.os_admin_username,
-        admin_password=CONF.os_admin_password,
-        admin_tenant_name=CONF.os_admin_tenant_name
-    )(app.wsgi_app)
+    app.wsgi_app = _decorate_with_authentication(app)
 
     return app
+
+
+def _decorate_with_authentication(app):
+    if CONF.permissive_mode:
+        return auth_token_permissive.filter_factory(
+            app.config,
+            auth_host=CONF.os_auth_host,
+            auth_port=CONF.os_auth_port,
+            auth_protocol=CONF.os_auth_protocol,
+            admin_user=CONF.os_admin_username,
+            admin_password=CONF.os_admin_password,
+            admin_tenant_name=CONF.os_admin_tenant_name
+        )(app.wsgi_app)
+    else:
+        return auth_token.filter_factory(
+            app.config,
+            auth_host=CONF.os_auth_host,
+            auth_port=CONF.os_auth_port,
+            auth_protocol=CONF.os_auth_protocol,
+            admin_user=CONF.os_admin_username,
+            admin_password=CONF.os_admin_password,
+            admin_tenant_name=CONF.os_admin_tenant_name
+        )(app.wsgi_app)
 
 
 def _get_infrastructure_engine():
