@@ -27,7 +27,7 @@ cli_opts = [
     cfg.BoolOpt('log-exchange', default=False,
                 help='Log request/response exchange details: environ, '
                      'headers and bodies.'),
-    cfg.PermissiveOpt('permissive_mode', default=False,
+    cfg.BoolOpt('permissive_mode', default=False,
                       help='Whether Sahara API should perform permissive authentication or not')
 ]
 
