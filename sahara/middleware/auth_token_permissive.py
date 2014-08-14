@@ -172,6 +172,7 @@ from keystoneclient.middleware import memcache_crypt
 from keystoneclient.openstack.common import jsonutils
 from keystoneclient.openstack.common import memorycache
 from keystoneclient.openstack.common import timeutils
+import sahara.openstack.commons as commons
 
 
 # alternative middleware configuration in the main application's
@@ -671,8 +672,20 @@ collects and forwards identity information based on a token, which is assumed to
             response, data = self._json_request('GET', '/v2.0/tenants', body=None, additional_headers=headers)
             active_tenants = [tenant for tenant in data['tenants'] if tenant['enabled']]
             if len(active_tenants) > 1:
-                self.LOG.info("More than one active tenant available for token. Choosing the first one.")
+                url_tenant_name = self._get_tenant_id_from_path(env, active_tenants)
+                if url_tenant_name:
+                    return url_tenant_name
+                self.LOG.warning("More than one active tenant available for token. Choosing the first one.")
             return active_tenants[0]['name'] if len(active_tenants) > 0 else None
+
+    def _get_tenant_id_from_path(self, env, active_tenants):
+        path = env['PATH_INFO']
+        if path != '/':
+            version, url_tenant_id, rest = commons.split_path(path, 3, 3, True)
+            if url_tenant_id:
+                self.LOG.info('Selecting tenant based on request path')
+                return [tenant['name'] for tenant in active_tenants if tenant['id'] == url_tenant_id][0]
+        return None
 
     def get_admin_token(self, admin_tenant_name=None):
         """Return admin token, possibly fetching a new one.
