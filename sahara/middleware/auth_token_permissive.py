@@ -890,6 +890,23 @@ collects and forwards identity information based on a token, which is assumed to
         env_key = self._header_to_env_var(key)
         return env.get(env_key, default)
 
+    def verify_signing_dir(self):
+        if os.path.exists(self.signing_dirname):
+            if not os.access(self.signing_dirname, os.W_OK):
+                raise ConfigurationError(
+                    'unable to access signing_dir %s' % self.signing_dirname)
+            uid = os.getuid()
+            if os.stat(self.signing_dirname).st_uid != uid:
+                self.LOG.warning(
+                    'signing_dir is not owned by %s', uid)
+            current_mode = stat.S_IMODE(os.stat(self.signing_dirname).st_mode)
+            if current_mode != stat.S_IRWXU:
+                self.LOG.warning(
+                    'signing_dir mode is %s instead of %s',
+                    oct(current_mode), oct(stat.S_IRWXU))
+        else:
+            os.makedirs(self.signing_dirname, stat.S_IRWXU)
+
 
 def filter_factory(global_conf, **local_conf):
     """Returns a WSGI filter app for use with paste.deploy."""
