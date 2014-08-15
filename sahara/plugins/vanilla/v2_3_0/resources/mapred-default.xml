@@ -435,6 +435,34 @@
 </property>
 
 <property>
+    <name>mapreduce.map.java.opts</name>
+    <value>-Xmx756m</value>
+    <description>Heap size for child jvms of maps
+    </description>
+</property>
+
+<property>
+    <name>mapreduce.reduce.java.opts</name>
+    <value>-Xmx756m</value>
+    <description>Heap size for child jvms of reduce tasks
+    </description>
+</property>
+
+<property>
+    <name>mapreduce.map.memory.mb</name>
+    <value>1024</value>
+    <description>Virtual memory for single Map task
+    </description>
+</property>
+
+<property>
+    <name>mapreduce.reduce.memory.mb</name>
+    <value>1024</value>
+    <description>Virtual memory for single Map task
+    </description>
+</property>
+
+<property>
   <name>mapred.child.env</name>
   <value></value>
   <description>User added environment variables for the task tracker child 
