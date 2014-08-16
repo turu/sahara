@@ -121,6 +121,20 @@ class TestRetryable(unittest2.TestCase):
         with self.assertRaises(NotImplementedError):
             func()
 
+    def test_operation_succeeds_after_given_number_of_retries(self):
+        #given
+        succeed_after = 7
+        decorator = r.retryable(1, 10)
+        instance = SucceedingAfterNTriesClassWithFailureCounter(succeed_after)
+        func = decorator(instance.func)
+
+        #when
+        result = func()
+
+        #then
+        self.assertEquals(instance.fail_counter, succeed_after - 1)
+        self.assertTrue(result)
+
 
 class AlwaysFailingClassWithFailureCounter(object):
     def __init__(self):
@@ -129,3 +143,14 @@ class AlwaysFailingClassWithFailureCounter(object):
     def func(self, *args, **kwargs):
         self.fail_counter += 1
         raise NotImplementedError()
+
+
+class SucceedingAfterNTriesClassWithFailureCounter(AlwaysFailingClassWithFailureCounter):
+    def __init__(self, succeed_in_n_try):
+        super(SucceedingAfterNTriesClassWithFailureCounter, self).__init__()
+        self.succeed_in_n_try = succeed_in_n_try
+
+    def func(self, *args, **kwargs):
+        if self.fail_counter == self.succeed_in_n_try - 1:
+            return True
+        super(SucceedingAfterNTriesClassWithFailureCounter, self).func(*args, **kwargs)
