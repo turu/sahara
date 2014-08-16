@@ -32,7 +32,24 @@ from sahara.utils.openstack import nova
 
 
 conductor = c.API
+
+opts = [
+    cfg.IntOpt("direct_node_spawn_slot_time_ms",
+               default=200,
+               help="Amount of milliseconds used as the time unit for Binary Exponential Backoff algorithm, "
+                    "used by the Direct Engine, when node spawning fails and has to be retried."),
+    cfg.IntOpt("direct_node_spawn_retries_limit",
+               default=10,
+               help="Max number of retries before the Direct Engine declares node spawning as failed."),
+    cfg.BoolOpt("direct_suppress_node_spawn_failure",
+                default=False,
+                help="If set to true, when node spawning fails, the Direct Engine will check if a cluster "
+                     "created without the offending node can pass plugin specific validation and if so, "
+                     "will continue the cluster creation process without that node.")
+]
+
 CONF = cfg.CONF
+CONF.register_opts(opts)
 LOG = logging.getLogger(__name__)
 
 
@@ -230,8 +247,8 @@ class DirectEngine(e.Engine):
 
         return None
 
-    @r.retryable(CONF.direct_engine_node_spawn_slot_time_ms, CONF.direct_engine_node_spawn_retries_limit,
-                 CONF.direct_engine_suppress_node_spawn_failure, remove_failed_instance,
+    @r.retryable(CONF.direct_node_spawn_slot_time_ms, CONF.direct_node_spawn_retries_limit,
+                 CONF.direct_suppress_node_spawn_failure, remove_failed_instance,
                  validate_cluster_after_spawn_failure)
     def _run_instance(self, cluster, node_group, idx, aa_groups):
         """Create instance using nova client and persist them into DB."""

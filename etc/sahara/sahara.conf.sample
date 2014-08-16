@@ -81,6 +81,21 @@
 # value)
 #remote=ssh
 
+#
+# Options defined in sahara.service.direct_engine
+#
+
+# Amount of milliseconds used as the time unit for Binary Exponential Back-off algorithm,
+# used by the Direct Engine, when node spawning fails and has to be retried.
+#direct_node_spawn_slot_time_ms=200
+
+# Max number of retries before the Direct Engine declares node spawning as failed.
+#direct_node_spawn_retries_limit=10
+
+# If set to true, when node spawning fails, the Direct Engine will check if a cluster
+# created without the offending node can pass plugin specific validation and if so,
+# will continue the cluster creation process without that node.
+#direct_suppress_node_spawn_failure=False
 
 #
 # Options defined in sahara.db.base
