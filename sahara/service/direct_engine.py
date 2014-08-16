@@ -21,9 +21,12 @@ from sahara import conductor as c
 from sahara import context
 from sahara.openstack.common import excutils
 from sahara.openstack.common import log as logging
+from sahara.plugins import base as plugin_base
 from sahara.service import engine as e
 from sahara.service import networks
 from sahara.service import volumes
+from sahara.service import retryable_operation as r
+from sahara.service.api import INFRA
 from sahara.utils import general as g
 from sahara.utils.openstack import nova
 
@@ -31,6 +34,28 @@ from sahara.utils.openstack import nova
 conductor = c.API
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
+
+
+def remove_failed_instance(cluster, node_group, idx, aa_groups):
+    LOG.warning("Spawning of node id %s from node_group %s for cluster %s, failed. Removing the node from cluster..."
+                % (str(idx), str(node_group.id), str(cluster.id)))
+
+    class Instance(object):
+        def __init__(self):
+            self.id = idx
+    try:
+        INFRA._shutdown_instance(Instance())
+    except Exception:
+        LOG.info("Removed instance was not present in the database")
+
+
+def validate_cluster_after_spawn_failure(cluster, node_group, idx, aa_groups):
+    LOG.info("Validating cluster %s after spawning of node %s from node group %s failed..."
+             % (str(cluster.id), str(idx), str(node_group.id)))
+    plugin = plugin_base.PLUGINS.get_plugin(cluster.plugin_name)
+    ctx = context.ctx()
+    cluster = conductor.cluster_get(ctx, cluster)
+    plugin.validate(cluster)
 
 
 class DirectEngine(e.Engine):
@@ -193,7 +218,8 @@ class DirectEngine(e.Engine):
                 for idx in six.moves.xrange(node_group.count + 1, count + 1):
                     instance_id = self._run_instance(cluster, node_group, idx,
                                                      aa_groups)
-                    instances_to_add.append(instance_id)
+                    if instance_id != r.FAILURE_SUPPRESSED:
+                        instances_to_add.append(instance_id)
 
         return instances_to_add
 
@@ -204,6 +230,9 @@ class DirectEngine(e.Engine):
 
         return None
 
+    @r.retryable(CONF.direct_engine_node_spawn_slot_time_ms, CONF.direct_engine_node_spawn_retries_limit,
+                 CONF.direct_engine_suppress_node_spawn_failure, remove_failed_instance,
+                 validate_cluster_after_spawn_failure)
     def _run_instance(self, cluster, node_group, idx, aa_groups):
         """Create instance using nova client and persist them into DB."""
         ctx = context.ctx()
