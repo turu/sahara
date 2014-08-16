@@ -47,7 +47,7 @@ def retryable(slot_time_ms, retries_limit, suppress_on_limit_exceeded=False, fai
     :param failure_suppressed_action: action to execute when suppress_on_limit_exceeded set to true
     :param validators: chain of validators to apply after failure_suppressed_action has been executed
 
-    :returns: result of the wrapped function
+    :returns: result of the wrapped function or FAILURE_SUPPRESSED marker object, if failure has been suppressed
     """
 
     def decorator(func):
