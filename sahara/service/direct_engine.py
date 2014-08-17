@@ -247,9 +247,8 @@ class DirectEngine(e.Engine):
 
         return None
 
-    @r.retryable(CONF.direct_node_spawn_slot_time_ms, CONF.direct_node_spawn_retries_limit,
-                 CONF.direct_suppress_node_spawn_failure, remove_failed_instance,
-                 validate_cluster_after_spawn_failure)
+    @r.retryable(CONF.direct_node_spawn_slot_time_ms, CONF.direct_node_spawn_retries_limit, remove_failed_instance,
+                 CONF.direct_suppress_node_spawn_failure, validate_cluster_after_spawn_failure)
     def _run_instance(self, cluster, node_group, idx, aa_groups):
         """Create instance using nova client and persist them into DB."""
         ctx = context.ctx()

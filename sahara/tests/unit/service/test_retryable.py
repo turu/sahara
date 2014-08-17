@@ -68,7 +68,7 @@ class TestRetryable(unittest2.TestCase):
     def test_always_failing_function_is_suppressed_after_max_times_with_no_action(self):
         #given
         retry_limit = 7
-        decorator = r.retryable(1, retry_limit, True)
+        decorator = r.retryable(1, retry_limit, None, True)
 
         instance = AlwaysFailingClassWithFailureCounter()
         func = decorator(instance.func)
@@ -83,7 +83,7 @@ class TestRetryable(unittest2.TestCase):
     def test_action_is_applied_after_failure_suppressed(self):
         #given
         failure_action = Mock()
-        decorator = r.retryable(1, 7, True, failure_action)
+        decorator = r.retryable(1, 7, failure_action, True)
 
         instance = AlwaysFailingClassWithFailureCounter()
         func = decorator(instance.func)
@@ -98,7 +98,7 @@ class TestRetryable(unittest2.TestCase):
         #given
         failure_action = Mock()
         validator = Mock(return_value=True)
-        decorator = r.retryable(1, 7, True, failure_action, validator)
+        decorator = r.retryable(1, 7, failure_action, True, validator)
         instance = AlwaysFailingClassWithFailureCounter()
         func = decorator(instance.func)
 
@@ -113,7 +113,7 @@ class TestRetryable(unittest2.TestCase):
         #given
         failure_action = Mock()
         validator = Mock(return_value=False)
-        decorator = r.retryable(1, 7, True, failure_action, validator)
+        decorator = r.retryable(1, 7, failure_action, True, validator)
         instance = AlwaysFailingClassWithFailureCounter()
         func = decorator(instance.func)
 
@@ -134,6 +134,20 @@ class TestRetryable(unittest2.TestCase):
         #then
         self.assertEquals(instance.fail_counter, succeed_after - 1)
         self.assertTrue(result)
+
+    def test_on_failure_action_is_applied_after_every_failure(self):
+        #given
+        retry_limit = 10
+        action = Mock()
+        decorator = r.retryable(1, retry_limit, action, True)
+        instance = AlwaysFailingClassWithFailureCounter()
+        func = decorator(instance.func)
+
+        #when
+        func()
+
+        #then
+        self.assertEquals(action.call_count, retry_limit + 1)
 
 
 class AlwaysFailingClassWithFailureCounter(object):

@@ -20,15 +20,13 @@ import eventlet
 FAILURE_SUPPRESSED = object()
 
 
-def retryable(slot_time_ms, retries_limit, suppress_on_limit_exceeded=False, failure_suppressed_action=None,
-              *validators):
+def retryable(slot_time_ms, retries_limit, on_failure_action=None, suppress_on_limit_exceeded=False, *validators):
     """
     This decorator wraps the underlying function and performs Binary Exponential Backoff algorithm
     (http://en.wikipedia.org/wiki/Exponential_backoff), trying to successfully execute the operation.
     If the number of retries has been exceeded there are two possibilities. Either the whole operation fails explicitly,
     or its failure is suppressed (because this function execution is part of some bigger operation that can
-    still succeed, even though this one failed). If that's the case, then the failure_suppressed_action is performed,
-    possibly changing some internal state of the calling object and a chain of validators is applied to check if
+    still succeed, even though this one failed). If that's the case, then a chain of validators is applied to check if
     suppressing failure of this operation can be accepted or not.
 
     An example of usage would be to apply this decorator to node spawning operation. Under certain circumstances (for
@@ -38,15 +36,13 @@ def retryable(slot_time_ms, retries_limit, suppress_on_limit_exceeded=False, fai
     until requested resources are available. When the retries limit is exceeded and there still are not enough
     resources to spawn the node, it can be removed from the cluster without the whole operation failing, if and only
     if the offending node was not meant to be the master of the cluster. One can achieve the behavior described above,
-    by passing an failure_suppressed_action removing the node from the cluster and a validator checking if cluster's
+    by passing an on_failure_action removing the node from the cluster and a validator checking if cluster's
     topology after the node's been removed, can still be accepted.
 
     :param slot_time_ms: amount of milliseconds used as the time unit for Binary Exponential Backoff algorithm
     :param retries_limit: max number of retries before failing the operation
     :param suppress_on_limit_exceeded: whether the operation should fail explicitly when retries limit has been exceeded
-    :param failure_suppressed_action: action to execute when suppress_on_limit_exceeded set to true
-    :param validators: chain of validators to apply after failure_suppressed_action has been executed
-
+    :param on_failure_action: action to execute when operation failed and has to be retried
     :returns: result of the wrapped function or FAILURE_SUPPRESSED marker object, if failure has been suppressed
     """
 
@@ -66,6 +62,8 @@ def retryable(slot_time_ms, retries_limit, suppress_on_limit_exceeded=False, fai
             try:
                 return True, func(*args, **kwargs)
             except Exception as e:
+                if on_failure_action:
+                    on_failure_action(*args, **kwargs)
                 return False, e
 
         def _exponential_backoff(*args, **kwargs):
@@ -84,8 +82,6 @@ def retryable(slot_time_ms, retries_limit, suppress_on_limit_exceeded=False, fai
         def _handle_limit_exceeded(last_exception, *args, **kwargs):
             if not suppress_on_limit_exceeded:
                 raise last_exception
-            if failure_suppressed_action:
-                failure_suppressed_action(*args, **kwargs)
             if validators:
                 _apply_validators(last_exception, *args, **kwargs)
             return FAILURE_SUPPRESSED
