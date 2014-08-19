@@ -14,8 +14,12 @@
 # limitations under the License.
 
 import functools
+from sahara.openstack.common import log as logging
 from random import randrange
 import eventlet
+
+
+LOG = logging.getLogger(__name__)
 
 FAILURE_SUPPRESSED = object()
 
@@ -62,12 +66,15 @@ def retryable(slot_time_ms, retries_limit, on_failure_action=None, suppress_on_l
             try:
                 return True, func(*args, **kwargs)
             except Exception as e:
+                LOG.debug("Execution of operation %s with arguments: %s failed" % (func.__name__, str(kwargs)))
                 if on_failure_action:
                     on_failure_action(*args, **kwargs)
                 return False, e
 
         def _exponential_backoff(*args, **kwargs):
             for retry_count in range(1, retries_limit):
+                LOG.debug("Retrying (retry count: %s) operation %s with arguments: %s" %
+                          (retry_count, func.__name__, str(kwargs)))
                 succeeded, result = _try_execute(*args, **kwargs)
                 if succeeded:
                     return True, result
@@ -83,6 +90,8 @@ def retryable(slot_time_ms, retries_limit, on_failure_action=None, suppress_on_l
             if not suppress_on_limit_exceeded:
                 raise last_exception
             if validators:
+                LOG.debug("Applying validators %s after suppressed failed execution of %s with arguments: %s" %
+                          (str(validators), func.__name__, str(kwargs)))
                 _apply_validators(last_exception, *args, **kwargs)
             return FAILURE_SUPPRESSED
 

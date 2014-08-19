@@ -70,8 +70,8 @@ def remove_failed_instance(self, cluster, node_group, idx, aa_groups):
             self.id = idx
     try:
         INFRA._shutdown_instance(Instance())
-    except Exception:
-        LOG.info("Removed instance was not present in the database")
+    except Exception as e:
+        LOG.info("Removed instance was not present in the database. Exception caught: %s" % e.message)
 
 
 def validate_cluster_after_spawn_failure(self, cluster, node_group, idx, aa_groups):
