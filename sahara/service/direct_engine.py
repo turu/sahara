@@ -26,7 +26,7 @@ from sahara.service import engine as e
 from sahara.service import networks
 from sahara.service import volumes
 from sahara.service import retryable_operation as r
-from sahara.service.api import INFRA
+from sahara.service import api
 from sahara.utils import general as g
 from sahara.utils.openstack import nova
 
@@ -62,14 +62,14 @@ LOG = logging.getLogger(__name__)
 
 
 def remove_failed_instance(self, cluster, node_group, idx, aa_groups):
-    LOG.warning("Spawning of node id %s from node_group %s for cluster %s, failed. Removing the node from cluster..."
-                % (str(idx), str(node_group.id), str(cluster.id)))
-
-    class Instance(object):
-        def __init__(self):
-            self.id = idx
+    name = '%s-%s-%03d' % (cluster.name, node_group.name, idx)
+    instance = g.get_instance_by_name(cluster, name)
+    engine = api.INFRA
+    LOG.warning("Spawning of node id %s from node_group %s for cluster %s, failed. "
+                "Removing the instance %s from cluster..." %
+                (str(idx), str(node_group.id), str(cluster.id), str(instance.id)))
     try:
-        INFRA._shutdown_instance(Instance())
+        engine._shutdown_instance(instance)
     except Exception as e:
         LOG.info("Removed instance was not present in the database. Exception caught: %s" % e.message)
 

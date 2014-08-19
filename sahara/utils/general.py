@@ -100,3 +100,11 @@ def generate_etc_hosts(cluster):
                                      instance.hostname())
 
     return hosts
+
+
+def get_instance_by_name(cluster, name):
+    for node_group in cluster.node_groups:
+        for instance in node_group.instances:
+            if instance.name == name:
+                return instance
+    return None
