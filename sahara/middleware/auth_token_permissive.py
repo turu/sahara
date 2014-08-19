@@ -633,7 +633,6 @@ collects and forwards identity information based on a token, which is assumed to
         Always authenticate and forward the request downstream
 
         """
-        self.LOG.debug('Authenticating user token in permissive mode')
 
         try:
             admin_tenant_name = self._get_admin_tenant_name(env)
@@ -683,7 +682,6 @@ collects and forwards identity information based on a token, which is assumed to
         if path != '/':
             version, url_tenant_id, rest = commons.split_path(path, 3, 3, True)
             if url_tenant_id:
-                self.LOG.info('Selecting tenant based on request path')
                 return [tenant['name'] for tenant in active_tenants if tenant['id'] == url_tenant_id][0]
         return None
 
@@ -704,7 +702,7 @@ collects and forwards identity information based on a token, which is assumed to
                 self.admin_token = None
 
         if (not self.admin_token) or self.admin_token_tenant['name'] != admin_tenant_name:
-            self.LOG.debug('Requesting new admin token');
+            self.LOG.debug('Requesting new admin token')
             (self.admin_token,
              self.admin_token_expiry, self.admin_token_data, self.admin_token_tenant) = self._request_admin_token(admin_tenant_name)
 
@@ -868,10 +866,6 @@ collects and forwards identity information based on a token, which is assumed to
             'X-Tenant': auth_ref.project_name,
             'X-Role': roles,
             }
-
-        self.LOG.debug('Received request from user: %s with project_id : %s'
-                       ' and roles: %s ',
-                       auth_ref.user_id, auth_ref.project_id, roles)
 
         if self.include_service_catalog and auth_ref.has_service_catalog():
             catalog = auth_ref.service_catalog.get_data()
