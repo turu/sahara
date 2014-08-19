@@ -308,19 +308,21 @@ class DirectEngine(e.Engine):
     def _await_scheduled(self, instance):
         LOG.info("Waiting for instance %s to be scheduled." % instance.name)
         slept_total = 0
-        while slept_total < 10:
+        while slept_total < CONF.direct_node_scheduling_timeout_s:
             if self._check_if_scheduled(instance):
                 return
-            slept_total += 1
+            slept_total += CONF.direct_node_scheduling_check_interval_s
             context.sleep(1)
         raise RuntimeError("node %s was not scheduled within given time" % instance.name)
 
     def _check_if_scheduled(self, instance):
         server = nova.client().servers.get(instance.id)
         if server.status == 'ERROR':
-            raise RuntimeError("node %s has error status" % server.name)
+            raise RuntimeError("node %s has error status with fault: %s" % (server.name, server.fault))
 
-        return server.__getattribute__('OS-EXT-STS:task_state') != "scheduling"
+        task_state = server.__getattribute__('OS-EXT-STS:task_state')
+        LOG.debug("Current task_state of instance %s is %s" % (instance.name, task_state))
+        return task_state != "scheduling"
 
     def _assign_floating_ips(self, instances):
         for instance in instances:
@@ -352,7 +354,7 @@ class DirectEngine(e.Engine):
         server = nova.get_instance_info(instance)
         if server.status == 'ERROR':
             # TODO(slukjanov): replace with specific error
-            raise RuntimeError("node %s has error status" % server.name)
+            raise RuntimeError("node %s has error status with fault: %s" % (server.name, server.fault))
 
         return server.status == 'ACTIVE'
 
