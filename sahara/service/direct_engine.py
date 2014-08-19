@@ -62,9 +62,15 @@ LOG = logging.getLogger(__name__)
 
 
 def remove_failed_instance(self, cluster, node_group, idx, aa_groups):
+    ctx = context.ctx()
     name = '%s-%s-%03d' % (cluster.name, node_group.name, idx)
+    cluster = conductor.cluster_get(ctx, cluster)
     instance = g.get_instance_by_name(cluster, name)
     engine = api.INFRA
+    if instance is None:
+        LOG.warning("Failed instance id %s from node_group %s for cluster %s was not present in the cluster" %
+                    ((str(idx), str(node_group.id), str(cluster.id))))
+        return
     LOG.warning("Spawning of node id %s from node_group %s for cluster %s, failed. "
                 "Removing the instance %s from cluster..." %
                 (str(idx), str(node_group.id), str(cluster.id), str(instance.id)))
