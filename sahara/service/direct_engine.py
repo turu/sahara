@@ -45,7 +45,15 @@ opts = [
                 default=False,
                 help="If set to true, when node spawning fails, the Direct Engine will check if a cluster "
                      "created without the offending node can pass plugin specific validation and if so, "
-                     "will continue the cluster creation process without that node.")
+                     "will continue the cluster creation process without that node."),
+    cfg.IntOpt("direct_node_scheduling_timeout_s",
+               default=10,
+               help="Sets timeout after which node spawning is declared as failed. It's used to prevent VMs from"
+                    "being forever stuck at scheduling phase of build"),
+    cfg.IntOpt("direct_node_scheduling_check_interval_s",
+               default=1,
+               help="Direct engine will check if a node has already been scheduled, "
+                    "every direct_node_scheduling_check_interval_s seconds")
 ]
 
 CONF = cfg.CONF
@@ -53,7 +61,7 @@ CONF.register_opts(opts)
 LOG = logging.getLogger(__name__)
 
 
-def remove_failed_instance(cluster, node_group, idx, aa_groups):
+def remove_failed_instance(self, cluster, node_group, idx, aa_groups):
     LOG.warning("Spawning of node id %s from node_group %s for cluster %s, failed. Removing the node from cluster..."
                 % (str(idx), str(node_group.id), str(cluster.id)))
 
@@ -66,7 +74,7 @@ def remove_failed_instance(cluster, node_group, idx, aa_groups):
         LOG.info("Removed instance was not present in the database")
 
 
-def validate_cluster_after_spawn_failure(cluster, node_group, idx, aa_groups):
+def validate_cluster_after_spawn_failure(self, cluster, node_group, idx, aa_groups):
     LOG.info("Validating cluster %s after spawning of node %s from node group %s failed..."
              % (str(cluster.id), str(idx), str(node_group.id)))
     plugin = plugin_base.PLUGINS.get_plugin(cluster.plugin_name)
@@ -194,11 +202,13 @@ class DirectEngine(e.Engine):
 
         aa_groups = {}
 
-        for node_group in cluster.node_groups:
-            count = node_group.count
-            conductor.node_group_update(ctx, node_group, {'count': 0})
-            for idx in six.moves.xrange(1, count + 1):
-                self._run_instance(cluster, node_group, idx, aa_groups)
+        with context.ThreadGroup() as tg:
+            for node_group in cluster.node_groups:
+                count = node_group.count
+                conductor.node_group_update(ctx, node_group, {'count': 0})
+                for idx in six.moves.xrange(1, count + 1):
+                    tg.spawn("instance-creating-%s-%s-%s" % (cluster.id, node_group.id, idx),
+                             self._run_instance, cluster, node_group, idx, aa_groups)
 
     def _scale_cluster_instances(self, cluster, node_group_id_map):
         ctx = context.ctx()
@@ -283,6 +293,9 @@ class DirectEngine(e.Engine):
         instance_id = conductor.instance_add(ctx, node_group,
                                              {"instance_id": nova_instance.id,
                                               "instance_name": name})
+
+        self._await_scheduled(nova_instance)
+
         # save instance id to aa_groups to support aa feature
         for node_process in node_group.node_processes:
             if node_process in cluster.anti_affinity:
@@ -291,6 +304,23 @@ class DirectEngine(e.Engine):
                 aa_groups[node_process] = aa_group_ids
 
         return instance_id
+
+    def _await_scheduled(self, instance):
+        LOG.info("Waiting for instance %s to be scheduled." % instance.name)
+        slept_total = 0
+        while slept_total < 10:
+            if self._check_if_scheduled(instance):
+                return
+            slept_total += 1
+            context.sleep(1)
+        raise RuntimeError("node %s was not scheduled within given time" % instance.name)
+
+    def _check_if_scheduled(self, instance):
+        server = nova.client().servers.get(instance.id)
+        if server.status == 'ERROR':
+            raise RuntimeError("node %s has error status" % server.name)
+
+        return server.__getattribute__('OS-EXT-STS:task_state') != "scheduling"
 
     def _assign_floating_ips(self, instances):
         for instance in instances:

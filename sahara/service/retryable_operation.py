@@ -56,7 +56,7 @@ def retryable(slot_time_ms, retries_limit, on_failure_action=None, suppress_on_l
                 succeeded, result = _exponential_backoff(*args, **kwargs)
                 if succeeded:
                     return result
-            return _handle_limit_exceeded(result)
+            return _handle_limit_exceeded(result, *args, **kwargs)
 
         def _try_execute(*args, **kwargs):
             try:

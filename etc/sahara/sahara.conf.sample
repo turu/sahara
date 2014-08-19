@@ -97,6 +97,14 @@
 # will continue the cluster creation process without that node.
 #direct_suppress_node_spawn_failure=False
 
+# Sets timeout after which node spawning is declared as failed. It's used to prevent VMs from
+# being forever stuck at scheduling phase of build
+#direct_node_scheduling_timeout_s=10
+
+# Direct engine will check if a node has already been scheduled, "
+# every direct_node_scheduling_check_interval_s seconds")
+#direct_node_scheduling_check_interval_s=1
+
 #
 # Options defined in sahara.db.base
 #

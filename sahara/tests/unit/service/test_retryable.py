@@ -149,6 +149,19 @@ class TestRetryable(unittest2.TestCase):
         #then
         self.assertEquals(action.call_count, retry_limit + 1)
 
+    def test_validators_are_given_all_decorated_function_arguments(self):
+        #given
+        validator = Mock()
+        decorator = r.retryable(0, 0, None, True, validator)
+        instance = AlwaysFailingClassWithFailureCounter()
+        func = decorator(instance.func)
+
+        #when
+        func(1, 2, 3)
+
+        #then
+        validator.assert_called_once_with(1, 2, 3)
+
 
 class AlwaysFailingClassWithFailureCounter(object):
     def __init__(self):
