@@ -74,8 +74,8 @@ def try_force_delete(name):
         try:
             server.force_delete()
         except Exception as e:
-            LOG.debug("Exception occurred during force deleting of an instance name %s. Message: %s" %
-                      (name, e.message))
+            LOG.debug("Exception occurred during force deleting of an instance name %s. Message: %s. "
+                      "Performing normal delete" % (name, e.message))
             server.delete()
     else:
         LOG.debug("Instance name %s not present in nova. Could not force delete")
