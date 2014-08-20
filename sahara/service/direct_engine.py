@@ -46,14 +46,14 @@ opts = [
                 help="If set to true, when node spawning fails, the Direct Engine will check if a cluster "
                      "created without the offending node can pass plugin specific validation and if so, "
                      "will continue the cluster creation process without that node."),
-    cfg.IntOpt("direct_node_scheduling_timeout_s",
-               default=10,
+    cfg.IntOpt("direct_node_active_timeout_s",
+               default=1800,
                help="Sets timeout after which node spawning is declared as failed. It's used to prevent VMs from"
                     "being forever stuck at scheduling phase of build"),
-    cfg.IntOpt("direct_node_scheduling_check_interval_s",
-               default=1,
+    cfg.IntOpt("direct_node_active_check_interval_s",
+               default=10,
                help="Direct engine will check if a node has already been scheduled, "
-                    "every direct_node_scheduling_check_interval_s seconds")
+                    "every direct_node_active_check_interval_s seconds")
 ]
 
 CONF = cfg.CONF
@@ -334,7 +334,7 @@ class DirectEngine(e.Engine):
                                              {"instance_id": nova_instance.id,
                                               "instance_name": name})
 
-        self._await_scheduled(nova_instance)
+        self._await_instance_active(nova_instance)
 
         # save instance id to aa_groups to support aa feature
         for node_process in node_group.node_processes:
@@ -343,28 +343,26 @@ class DirectEngine(e.Engine):
                 aa_group_ids.append(nova_instance.id)
                 aa_groups[node_process] = aa_group_ids
 
-        LOG.info("Successfully created and scheduled instance name: %s, id: %s" % (name, nova_instance.id))
+        LOG.info("Successfully created instance name: %s, id: %s" % (name, nova_instance.id))
 
         return instance_id
 
-    def _await_scheduled(self, instance):
-        LOG.info("Waiting for instance %s to be scheduled." % instance.name)
+    def _await_instance_active(self, instance):
+        LOG.info("Waiting for instance %s to become Active." % instance.name)
         slept_total = 0
-        while slept_total < CONF.direct_node_scheduling_timeout_s:
-            if self._check_if_scheduled(instance):
+        while slept_total < CONF.direct_node_active_timeout_s:
+            if self._check_if_instance_active(instance):
                 return
-            slept_total += CONF.direct_node_scheduling_check_interval_s
-            context.sleep(CONF.direct_node_scheduling_check_interval_s)
-        raise RuntimeError("node %s was not scheduled within given time" % instance.name)
+            slept_total += CONF.direct_node_active_check_interval_s
+            context.sleep(CONF.direct_node_active_check_interval_s)
+        raise RuntimeError("node %s was not Active within given time" % instance.name)
 
-    def _check_if_scheduled(self, instance):
+    def _check_if_instance_active(self, instance):
         server = nova.client().servers.get(instance.id)
         if server.status == 'ERROR':
             raise RuntimeError("node %s has error status with fault: %s" % (server.name, server.fault))
 
-        task_state = server.__getattribute__('OS-EXT-STS:task_state')
-        LOG.debug("Current task_state of instance %s is %s" % (instance.name, task_state))
-        return task_state != "scheduling"
+        return server.status == 'ACTIVE'
 
     def _assign_floating_ips(self, instances):
         for instance in instances:

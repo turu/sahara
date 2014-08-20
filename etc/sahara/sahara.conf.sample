@@ -99,11 +99,11 @@
 
 # Sets timeout after which node spawning is declared as failed. It's used to prevent VMs from
 # being forever stuck at scheduling phase of build
-#direct_node_scheduling_timeout_s=10
+#direct_node_active_timeout_s=1800
 
 # Direct engine will check if a node has already been scheduled, "
-# every direct_node_scheduling_check_interval_s seconds")
-#direct_node_scheduling_check_interval_s=1
+# every direct_node_active_check_interval_s seconds")
+#direct_node_active_check_interval_s=10
 
 #
 # Options defined in sahara.db.base
