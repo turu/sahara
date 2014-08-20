@@ -17,6 +17,7 @@ import six
 
 from sahara import conductor as c
 from sahara import context
+from sahara.utils.openstack import nova
 
 
 conductor = c.API
@@ -105,6 +106,7 @@ def generate_etc_hosts(cluster):
 def get_instance_by_name(cluster, name):
     for node_group in cluster.node_groups:
         for instance in node_group.instances:
-            if instance.name == name:
+            server = nova.get_instance_info(instance)
+            if server.name == name:
                 return instance
     return None

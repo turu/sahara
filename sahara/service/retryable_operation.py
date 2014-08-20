@@ -66,7 +66,7 @@ def retryable(slot_time_ms, retries_limit, on_failure_action=None, suppress_on_l
             try:
                 return True, func(*args, **kwargs)
             except Exception as e:
-                LOG.debug("Execution of operation %s failed" % func.__name__)
+                LOG.debug("Execution of operation %s failed with message: %s" % (func.__name__, e.message))
                 if on_failure_action:
                     on_failure_action(*args, **kwargs)
                 return False, e
@@ -76,6 +76,7 @@ def retryable(slot_time_ms, retries_limit, on_failure_action=None, suppress_on_l
                 LOG.debug("Retrying (retry count: %s) operation %s" % (retry_count, func.__name__))
                 succeeded, result = _try_execute(*args, **kwargs)
                 if succeeded:
+                    LOG.debug("Execution of operation %s succeeded after %s retries" % (func.__name__, retry_count))
                     return True, result
                 _random_sleep(retry_count)
             return _try_execute(*args, **kwargs)
