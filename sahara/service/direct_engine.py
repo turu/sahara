@@ -61,18 +61,18 @@ CONF.register_opts(opts)
 LOG = logging.getLogger(__name__)
 
 
-def remove_failed_instance(self, cluster, node_group, idx, aa_groups):
-    ctx = context.ctx()
-    name = '%s-%s-%03d' % (cluster.name, node_group.name, idx)
-    cluster = conductor.cluster_get(ctx, cluster)
-    instance = g.get_instance_by_name(cluster, name)
-    engine = api.INFRA
-    if instance is None:
-        LOG.warning("Failed instance id %s from node_group %s for cluster %s was not present in the cluster. "
-                    "Removing anyway..." % ((str(idx), str(node_group.id), str(cluster.id))))
-        server = nova.client().servers.list(True, {"name": name})[0]
-        server.delete()
-        return
+def try_force_delete(cluster, idx, name, node_group):
+    LOG.warning("Failed instance id %s from node_group %s for cluster %s was not present in the cluster. "
+                "Removing anyway..." % ((str(idx), str(node_group.id), str(cluster.id))))
+    server = nova.client().servers.list(True, {"name": name})[0]
+    if server:
+        LOG.debug("Force deleting instance name %s" % server.name)
+        server.force_delete()
+    else:
+        LOG.debug("Instance name %s not present in nova. Could not force delete")
+
+
+def try_shutdown(cluster, engine, idx, instance, node_group):
     LOG.warning("Spawning of node id %s from node_group %s for cluster %s, failed. "
                 "Removing the instance %s from cluster..." %
                 (str(idx), str(node_group.id), str(cluster.id), str(instance.id)))
@@ -80,6 +80,26 @@ def remove_failed_instance(self, cluster, node_group, idx, aa_groups):
         engine._shutdown_instance(instance)
     except Exception as e:
         LOG.info("Removed instance was not present in the database. Exception caught: %s" % e.message)
+
+
+def await_deleted(name):
+    LOG.debug("Waiting for instance name %s to be deleted from nova" % name)
+    while nova.client().servers.list(True, {"name": name})[0] is not None:
+        context.sleep(1)
+    LOG.debug("Instance name %s no longer present in nova. Removed." % name)
+
+
+def remove_failed_instance(self, cluster, node_group, idx, aa_groups):
+    ctx = context.ctx()
+    name = '%s-%s-%03d' % (cluster.name, node_group.name, idx)
+    cluster = conductor.cluster_get(ctx, cluster)
+    instance = g.get_instance_by_name(cluster, name)
+    engine = api.INFRA
+    if instance is None:
+        try_force_delete(cluster, idx, name, node_group)
+    else:
+        try_shutdown(cluster, engine, idx, instance, node_group)
+    await_deleted(name)
 
 
 def validate_cluster_after_spawn_failure(self, cluster, node_group, idx, aa_groups):
