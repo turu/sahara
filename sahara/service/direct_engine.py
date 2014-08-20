@@ -354,7 +354,7 @@ class DirectEngine(e.Engine):
             if self._check_if_scheduled(instance):
                 return
             slept_total += CONF.direct_node_scheduling_check_interval_s
-            context.sleep(1)
+            context.sleep(CONF.direct_node_scheduling_check_interval_s)
         raise RuntimeError("node %s was not scheduled within given time" % instance.name)
 
     def _check_if_scheduled(self, instance):
