@@ -62,15 +62,21 @@ LOG = logging.getLogger(__name__)
 
 
 def try_force_delete(name):
-    server = nova.client().servers.list(True, {"name": name})[0]
-    if server:
+    server_list = nova.client().servers.list(True, {"name": name})
+    if len(server_list) > 0:
+        server = server_list[0]
         LOG.debug("Force deleting instance name %s" % server.name)
         try:
             server.reset_state()
+        except Exception as e:
+            LOG.debug("Exception occurred during resetting state of an instance name %s. Message: %s" %
+                      (name, e.message))
+        try:
             server.force_delete()
         except Exception as e:
             LOG.debug("Exception occurred during force deleting of an instance name %s. Message: %s" %
                       (name, e.message))
+            server.delete()
     else:
         LOG.debug("Instance name %s not present in nova. Could not force delete")
 
@@ -87,7 +93,7 @@ def try_shutdown(cluster, engine, idx, instance, node_group):
 
 def await_deleted(name):
     LOG.debug("Waiting for instance name %s to be deleted from nova" % name)
-    while nova.client().servers.list(True, {"name": name})[0] is not None:
+    while len(nova.client().servers.list(True, {"name": name})) > 0:
         try_force_delete(name)
         context.sleep(1)
     LOG.debug("Instance name %s no longer present in nova. Removed." % name)
@@ -336,6 +342,8 @@ class DirectEngine(e.Engine):
                 aa_group_ids = aa_groups.get(node_process, [])
                 aa_group_ids.append(nova_instance.id)
                 aa_groups[node_process] = aa_group_ids
+
+        LOG.info("Successfully created and scheduled instance name: %s, id: %s" % (name, nova_instance.id))
 
         return instance_id
 
