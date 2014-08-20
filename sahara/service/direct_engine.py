@@ -61,9 +61,7 @@ CONF.register_opts(opts)
 LOG = logging.getLogger(__name__)
 
 
-def try_force_delete(cluster, idx, name, node_group):
-    LOG.warning("Failed instance id %s from node_group %s for cluster %s was not present in the cluster. "
-                "Removing anyway..." % ((str(idx), str(node_group.id), str(cluster.id))))
+def try_force_delete(name):
     server = nova.client().servers.list(True, {"name": name})[0]
     if server:
         LOG.debug("Force deleting instance name %s" % server.name)
@@ -85,6 +83,7 @@ def try_shutdown(cluster, engine, idx, instance, node_group):
 def await_deleted(name):
     LOG.debug("Waiting for instance name %s to be deleted from nova" % name)
     while nova.client().servers.list(True, {"name": name})[0] is not None:
+        try_force_delete(name)
         context.sleep(1)
     LOG.debug("Instance name %s no longer present in nova. Removed." % name)
 
@@ -96,7 +95,9 @@ def remove_failed_instance(self, cluster, node_group, idx, aa_groups):
     instance = g.get_instance_by_name(cluster, name)
     engine = api.INFRA
     if instance is None:
-        try_force_delete(cluster, idx, name, node_group)
+        LOG.warning("Failed instance id %s from node_group %s for cluster %s was not present in the cluster. "
+                    "Removing anyway..." % ((str(idx), str(node_group.id), str(cluster.id))))
+        try_force_delete(name)
     else:
         try_shutdown(cluster, engine, idx, instance, node_group)
     await_deleted(name)
