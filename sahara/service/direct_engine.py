@@ -68,8 +68,10 @@ def remove_failed_instance(self, cluster, node_group, idx, aa_groups):
     instance = g.get_instance_by_name(cluster, name)
     engine = api.INFRA
     if instance is None:
-        LOG.warning("Failed instance id %s from node_group %s for cluster %s was not present in the cluster" %
-                    ((str(idx), str(node_group.id), str(cluster.id))))
+        LOG.warning("Failed instance id %s from node_group %s for cluster %s was not present in the cluster. "
+                    "Removing anyway..." % ((str(idx), str(node_group.id), str(cluster.id))))
+        server = nova.client().servers.list(True, {"name": name})[0]
+        server.delete()
         return
     LOG.warning("Spawning of node id %s from node_group %s for cluster %s, failed. "
                 "Removing the instance %s from cluster..." %
