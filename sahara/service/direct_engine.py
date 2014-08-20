@@ -65,7 +65,12 @@ def try_force_delete(name):
     server = nova.client().servers.list(True, {"name": name})[0]
     if server:
         LOG.debug("Force deleting instance name %s" % server.name)
-        server.force_delete()
+        try:
+            server.reset_state()
+            server.force_delete()
+        except Exception as e:
+            LOG.debug("Exception occurred during force deleting of an instance name %s. Message: %s" %
+                      (name, e.message))
     else:
         LOG.debug("Instance name %s not present in nova. Could not force delete")
 
