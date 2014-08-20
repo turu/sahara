@@ -362,6 +362,8 @@ class DirectEngine(e.Engine):
         if server.status == 'ERROR':
             raise RuntimeError("node %s has error status with fault: %s" % (server.name, server.fault))
 
+        task_state = server.__getattribute__('OS-EXT-STS:task_state')
+        LOG.debug("Status update of instance %s: status %s, task_state %s" % (instance.name, server.status, task_state))
         return server.status == 'ACTIVE'
 
     def _assign_floating_ips(self, instances):
