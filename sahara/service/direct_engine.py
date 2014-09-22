@@ -120,7 +120,7 @@ def validate_cluster_after_spawn_failure(self, cluster, node_group, idx, aa_grou
     plugin = plugin_base.PLUGINS.get_plugin(cluster.plugin_name)
     ctx = context.ctx()
     cluster = conductor.cluster_get(ctx, cluster)
-    plugin.validate(cluster)
+    return plugin.validate(cluster)
 
 
 class DirectEngine(e.Engine):
